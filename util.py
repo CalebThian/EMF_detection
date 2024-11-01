@@ -103,7 +103,7 @@ def flatten(lst):
         else:
             yield item
             
-def print_points_qty(abf,index):
+def cal_points_qty(abf,index):
     x = []
     abf.setSweep(0,channel = 3)
     for c in index:
@@ -126,14 +126,19 @@ def print_points_qty(abf,index):
             temp[-1]+=1
         lastx = e
     matrix.append(temp)
-
+    return matrix
+            
+def print_points_qty(abf = None,index = None, matrix = None):
+    # Either giving abf and index, or giving matrix
+    if matrix is None:
+        matrix = calculate_points_qty(abf,index)
+        
     for ind, row in enumerate(matrix):
         print("%3d."%ind,end=" ")
         for qty in row:
             print("%-2d"%qty,end=' ')
         print(f"Row Dimension:{len(row)} ; Row Total: {str(np.sum(flatten(row)))}")
     print("Total points: "+str(np.sum(flatten(matrix))))
-    return matrix
     
 def plot_wave(abf,volt,start_single=False,end_single=False,timeStart = 0, timeEnd = None,channel = 2):
     abf.setSweep(0,channel = channel)
@@ -172,11 +177,11 @@ def plot_colormap(data,title,path = "",vmin = 0.98, vmax = 1.20):
    # fig, axs = plt.subplots(1, n, figsize=(n * 2 + 2, 3),
     #                        constrained_layout=True, squeeze=False)
     figure, axes = plt.subplots(figsize=(data.shape[1]/5,data.shape[0]/5))
-    psm = axes.pcolormesh(data, cmap='rainbow',rasterized=True,vmin=vmin, vmax=vmax)
+    psm = axes.pcolormesh(data, cmap='rainbow',rasterized=True,vmin=min(data.flatten()), vmax=max(data.flatten()))
     figure.colorbar(psm, ax=axes)
     axes.invert_yaxis()
     if abs(data.shape[0]-data.shape[0])<=1:
-        print(data.shape[1],data.shape[0])
+        #print(data.shape[1],data.shape[0])
         axes.set_aspect('equal', adjustable='box')
     plt.title(title)
     
@@ -187,6 +192,35 @@ def plot_colormap(data,title,path = "",vmin = 0.98, vmax = 1.20):
     plt.savefig(path+" "+title)
     plt.show()
     
+def process_end_ignore(matrix, ignore):
+    # matrix: a 2-d list
+    '''
+    ## Start ignore:
+    ignore_num = ignore[0]
+    for row in range(len(matrix)):
+        for col in range(len(matrix[row])):
+            if col>=ignore_num:
+                matrix[row][col] -= ignore_num
+                row = len(matrix)
+                break
+            else:
+                ignore_num -= matrix[row][col]
+                matrix[row][col] = 0
+    '''
+    ## End ignore
+    ignore_num = ignore[1]
+    for row in reversed(range(len(matrix))):
+        for col in reversed(range(len(matrix[row]))):
+            if matrix[row][col] >= ignore_num:
+                matrix[row][col] -= ignore_num
+                matrix = [row for row in matrix if not all(x == 0 for x in row)]
+                return matrix
+            else:
+                ignore_num -= matrix[row][col]
+                matrix[row][col] = 0
+    matrix = [row for row in matrix if not all(x == 0 for x in row)]
+    return matrix
+
 def calculate_mean(data, matrix, ignore, extra, dim):
     # Calculate mean of data at each point, points qty is recorded in matrix
     # Matrix: m*n list, before remove ignore and extra points
@@ -194,39 +228,21 @@ def calculate_mean(data, matrix, ignore, extra, dim):
     # extra: (start_extra, end_extra)
     # dim: (Row, Col)
     # According to requirements, first row is ignored
-    
-    # Process ignore:
-    data = data[ignore[0]:-ignore[1]]
-   
-    ## Start ignore:
-    ignore_num = ignore[0]
-    for row in range(len(matrix)):
-        for col in range(len(matrix[row])):
-            if col>=ignore_num:
-                matrix[row][col] -= ignore_num
-                break
-            else:
-                ignore_num -= matrix[row][col]
-                matrix[row][col] = 0
 
-    ## End ignore
-    ignore_num = ignore[1]
-    for row in reversed(range(len(matrix))):
-        for col in reversed(range(len(matrix[row]))):
-            if matrix[row][col] >= ignore_num:
-                matrix[row][col] -= ignore_num
-                break
-            else:
-                ignore_num -= matrix[row][col]
-                matrix[row][col] = 0
-    
+    matrix = process_end_ignore(matrix,ignore)
     
     p_ind = 0
     for row in range(len(matrix)):
         for col in range(len(matrix[row])):
+            #print("Points considered: "+str(matrix[row][col])+", "+str(p_ind)+"-"+str(p_ind+matrix[row][col]))
             temp = np.zeros(matrix[row][col])
+            #print("\t Before extract: ",end='')
+            #print(temp)
             for ind,i in enumerate(range(p_ind,p_ind+matrix[row][col])):
                 temp[ind] = data[i]
+            #print("\t After extract: ",end='')
+            #print(temp)
+            p_ind += matrix[row][col]
             if col == 0:
                 matrix[row][col] = np.mean(temp[extra[0]:])
             elif col == len(matrix[row])-1 and extra[1] != 0:
@@ -237,11 +253,6 @@ def calculate_mean(data, matrix, ignore, extra, dim):
     # Capture required dimension(Row), ignore first row
     matrix = matrix[1:1+dim[0]][:]
     matrix = np.array(matrix).reshape(dim)
-    
     return matrix
-    
-    
-    
-    
     
     
