@@ -170,13 +170,16 @@ def plot_wave(abf,volt,start_single=False,end_single=False,timeStart = 0, timeEn
     return len(close_index),len(far_index)
 
 
-def plot_colormap(data,title,path = "",vmin = 0.98, vmax = 1.20):
+def plot_colormap(data,title,path = "",vmin = 0.98, vmax = 1.20,figsize = None):
     """
     Helper function to plot data with associated colormap.
     """
    # fig, axs = plt.subplots(1, n, figsize=(n * 2 + 2, 3),
     #                        constrained_layout=True, squeeze=False)
-    figure, axes = plt.subplots(figsize=(data.shape[1]/5,data.shape[0]/5))
+    if figsize is None:
+        figure, axes = plt.subplots(figsize=(data.shape[1]/3,data.shape[0]/10))
+    else:
+        figure, axes = plt.subplots(figsize=figsize)
     psm = axes.pcolormesh(data, cmap='rainbow',rasterized=True,vmin=min(data.flatten()), vmax=max(data.flatten()))
     figure.colorbar(psm, ax=axes)
     axes.invert_yaxis()
