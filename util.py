@@ -5,6 +5,7 @@ from matplotlib import cm
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from os import getcwd,listdir
 import csv
+import pandas as pd
 
 
 def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None):
@@ -170,7 +171,7 @@ def plot_wave(abf,volt,start_single=False,end_single=False,timeStart = 0, timeEn
     return len(close_index),len(far_index)
 
 
-def plot_colormap(data,title,path = "",vmin = 0.98, vmax = 1.20,figsize = None):
+def plot_colormap(data,title,path = "",vmin = None, vmax = None,figsize = None):
     """
     Helper function to plot data with associated colormap.
     """
@@ -180,7 +181,11 @@ def plot_colormap(data,title,path = "",vmin = 0.98, vmax = 1.20,figsize = None):
         figure, axes = plt.subplots(figsize=(data.shape[1]/3,data.shape[0]/10))
     else:
         figure, axes = plt.subplots(figsize=figsize)
-    psm = axes.pcolormesh(data, cmap='rainbow',rasterized=True,vmin=min(data.flatten()), vmax=max(data.flatten()))
+    if vmin is None:
+        vmin = min(data.flatten())
+    if vmax is None:
+        vmax= max(data.flatten())
+    psm = axes.pcolormesh(data, cmap='rainbow',rasterized=True,vmin=vmin, vmax=vmax)
     figure.colorbar(psm, ax=axes)
     axes.invert_yaxis()
     if abs(data.shape[0]-data.shape[0])<=1:
@@ -224,38 +229,48 @@ def process_end_ignore(matrix, ignore):
     matrix = [row for row in matrix if not all(x == 0 for x in row)]
     return matrix
 
-def calculate_mean(data, matrix, ignore, extra, dim):
-    # Calculate mean of data at each point, points qty is recorded in matrix
-    # Matrix: m*n list, before remove ignore and extra points
+def capture(data, first_row_repeat, ignore, extra, dim):
+    # Capture Data
+    # data: 1-d list, before remove ignore and extra points
+    # first_row_repeat: each point in first row has repeated how many times, not consider start_ignore
     # ignore: (start_ignore, end_ignore)
     # extra: (start_extra, end_extra)
     # dim: (Row, Col)
     # According to requirements, first row is ignored
+    
+    data = data[ignore[0]:-ignore[1]]
+    data = data[first_row_repeat*dim[1]:]
+    data = np.array(data).reshape((dim[0],dim[1]+extra[0]+extra[1]))
+    data_temp = []
+    for row in range(len(data)):
+        if extra[1]==0:
+            data_temp.append(data[row][extra[0]:])
+        else:
+            data_temp.append(data[row][extra[0]:-extra[1]])
+    data_temp = np.array(data_temp)
+    return data_temp
+    
 
-    matrix = process_end_ignore(matrix,ignore)
-    
-    p_ind = 0
-    for row in range(len(matrix)):
-        for col in range(len(matrix[row])):
-            #print("Points considered: "+str(matrix[row][col])+", "+str(p_ind)+"-"+str(p_ind+matrix[row][col]))
-            temp = np.zeros(matrix[row][col])
-            #print("\t Before extract: ",end='')
-            #print(temp)
-            for ind,i in enumerate(range(p_ind,p_ind+matrix[row][col])):
-                temp[ind] = data[i]
-            #print("\t After extract: ",end='')
-            #print(temp)
-            p_ind += matrix[row][col]
-            if col == 0:
-                matrix[row][col] = np.mean(temp[extra[0]:])
-            elif col == len(matrix[row])-1 and extra[1] != 0:
-                matrix[row][col] = np.mean(temp[:-extra[1]])
-            else:
-                matrix[row][col] = np.mean(temp)
-            
-    # Capture required dimension(Row), ignore first row
-    matrix = matrix[1:1+dim[0]][:]
-    matrix = np.array(matrix).reshape(dim)
-    return matrix
-    
-    
+def write_target(target, file_path):
+    # 1. 将 `target` 转换为 DataFrame
+    target_df = pd.DataFrame(target)
+
+    # 2. 计算每列的平均值和标准差
+    mean = np.mean(target)
+    std = np.std(target)
+
+    # 创建一个 DataFrame 存储均值和标准差
+    stats_df = pd.DataFrame({
+        'Metric': ['Mean', 'Standard Deviation'],
+        'Value': [mean, std],
+    })
+
+    # 3. 打开 Excel 文件并写入两个新工作表
+    with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+        # 写入 `target` 数据到新工作表 "TargetData"
+        target_df.to_excel(writer, sheet_name='TargetData', index=False, header = False)
+
+        # 写入 `target` 的均值和标准差到另一个新工作表 "TargetStats"
+        stats_df.to_excel(writer, sheet_name='TargetStats', index=False)
+
+        writer.save()  # 保存文件
