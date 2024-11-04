@@ -191,7 +191,7 @@ def plot_colormap(data,title,path = "",vmin = None, vmax = None,figsize = None):
     if abs(data.shape[0]-data.shape[0])<=1:
         #print(data.shape[1],data.shape[0])
         axes.set_aspect('equal', adjustable='box')
-    plt.title(title)
+    plt.title(title + f" \n({vmin:.4f},{vmax:.4f})")
     
     mean = np.mean(data.flatten())
     std = np.std(data.flatten())
@@ -259,8 +259,8 @@ def write_target(target, file_path):
     stats = [['Mean',mean],['Standard Deviation',std]]
 
     # 将 `target` 和 `stats` 输出到 CSV 文件，不包含列名
-    target_file_path = file_path + '_data.csv'
-    stats_file_path = file_path + '_stats.csv'
+    target_file_path = "result\\"+ file_path + '_data.csv'
+    stats_file_path =  "stats\\"+file_path + '_stats.csv'
     
     with open(target_file_path, 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
