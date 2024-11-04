@@ -252,25 +252,28 @@ def capture(data, first_row_repeat, ignore, extra, dim):
     
 
 def write_target(target, file_path):
-    # 1. 将 `target` 转换为 DataFrame
-    target_df = pd.DataFrame(target)
-
-    # 2. 计算每列的平均值和标准差
+    # 计算每列的平均值和标准差
     mean = np.mean(target)
     std = np.std(target)
 
-    # 创建一个 DataFrame 存储均值和标准差
-    stats_df = pd.DataFrame({
-        'Metric': ['Mean', 'Standard Deviation'],
-        'Value': [mean, std],
-    })
+    stats = [['Mean',mean],['Standard Deviation',std]]
 
-    # 3. 打开 Excel 文件并写入两个新工作表
-    with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-        # 写入 `target` 数据到新工作表 "TargetData"
-        target_df.to_excel(writer, sheet_name='TargetData', index=False, header = False)
-
-        # 写入 `target` 的均值和标准差到另一个新工作表 "TargetStats"
-        stats_df.to_excel(writer, sheet_name='TargetStats', index=False)
-
-        writer.save()  # 保存文件
+    # 将 `target` 和 `stats` 输出到 CSV 文件，不包含列名
+    target_file_path = file_path + '_data.csv'
+    stats_file_path = file_path + '_stats.csv'
+    
+    with open(target_file_path, 'w', encoding='UTF8', newline='') as f:
+        writer = csv.writer(f)
+        # write the data
+        if len(target.shape)==2:
+            for x in target:
+                writer.writerow(x)
+                
+        if len(target.shape)==1:
+            writer.writerow(target)
+            
+    with open(stats_file_path, 'w', encoding='UTF8', newline='') as f:
+        writer = csv.writer(f)
+        # write the data
+        for x in stats:
+            writer.writerow(x)
