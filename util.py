@@ -129,10 +129,10 @@ def cal_points_qty(abf,index):
     matrix.append(temp)
     return matrix
             
-def print_points_qty(abf = None,index = None, matrix = None):
+def print_points_qty(abf,index = None, matrix = None):
     # Either giving abf and index, or giving matrix
     if matrix is None:
-        matrix = calculate_points_qty(abf,index)
+        matrix = cal_points_qty(abf,index)
         
     for ind, row in enumerate(matrix):
         print("%3d."%ind,end=" ")
@@ -250,7 +250,7 @@ def capture(data, first_row_repeat, ignore, extra, dim):
     data_temp = np.array(data_temp)
     return data_temp
     
-
++
 def write_target(target, file_path):
     # 计算每列的平均值和标准差
     mean = np.mean(target)
@@ -277,3 +277,6 @@ def write_target(target, file_path):
         # write the data
         for x in stats:
             writer.writerow(x)
+            
+def check_close_far_pair(close_inds,far_inds):
+---9
