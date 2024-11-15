@@ -141,13 +141,13 @@ def print_points_qty(abf = None,index = None, matrix = None):
         print(f"Row Dimension:{len(row)} ; Row Total: {str(np.sum(flatten(row)))}")
     print("Total points: "+str(np.sum(flatten(matrix))))
     
-def plot_wave(abf,volt,start_single=False,end_single=False,timeStart = 0, timeEnd = None,channel = 2):
+def plot_wave(abf,volt,single = (False,False),timeStart = 0, timeEnd = None,channel = 2):
     abf.setSweep(0,channel = channel)
     plt.figure(figsize=(18,5))
     plt.plot(abf.sweepX[timeStart:timeEnd],abf.sweepY[timeStart:timeEnd],color = 'green')
     
     #plot the stable 
-    index,close_index,far_index = analysis_Bias(abf,volt,start_single,end_single,timeStart = timeStart,timeEnd = timeEnd)
+    index,close_index,far_index = analysis_Bias(abf,volt,single,timeStart = timeStart,timeEnd = timeEnd)
     abf.setSweep(0,channel = channel)
     barX_start = []
     barY_start = []
