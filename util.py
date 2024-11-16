@@ -6,6 +6,7 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from os import getcwd,listdir
 import csv
 import pandas as pd
+import math
 
 
 def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None):
@@ -250,7 +251,6 @@ def capture(data, first_row_repeat, ignore, extra, dim):
     data_temp = np.array(data_temp)
     return data_temp
     
-+
 def write_target(target, file_path):
     # 计算每列的平均值和标准差
     mean = np.mean(target)
@@ -278,5 +278,67 @@ def write_target(target, file_path):
         for x in stats:
             writer.writerow(x)
             
-def check_close_far_pair(close_inds,far_inds):
----9
+# Progressively check which diffenrence may be error
+def stepwise_outlier(arr,tol = 15):
+    # tol: accept inside the boundary (mean+- tol*std)
+    # Only check the last one
+    mean = np.mean(arr)
+    std = np.std(arr)
+    upper_bound = mean+tol*std
+    lower_bound = mean-tol*std
+    if arr[-1]> upper_bound or  arr[-1]< lower_bound:
+        print(f"Now:{arr[-1]:.2f},Mean: {mean:.2f}, Std:{std:.2f},Limits:[{lower_bound:.2f},{upper_bound:.2f}]")
+        return True
+    else:
+        
+        return False
+    
+def map_ind_coor(index, Row, Col, ignore, extra, first_row_repeat):
+    # Case 1: Inside start ignore bounds
+    if index < ignore[0]:
+        print(f"Index {index} is located among start ignore points")
+        return (0,index)
+    # Case 2: At first row
+    elif index < (ignore[0]+Col*first_row_repeat):
+        col = index-ignore[0]
+        col = math.floor(col/first_row_repeat)
+        print(f"Index {index} is located at Row = 1, Col = {col}")
+        return (1,col)
+    # Case 3: Among Row 2~Last row exclude end ignore
+    elif index<((Row-1)*(Col+extra[0]+extra[1])+ignore[0]+Col*first_row_repeat):
+        row = index - (ignore[0]+Col*first_row_repeat)
+        row = math.floor(row/(Col+extra[0]+extra[0]))+1
+        
+        col = index - (ignore[0]+Col*first_row_repeat)
+        col = col-(row-1)*(Col+extra[0]+extra[1])
+        if col <= extra[0]:
+            print(f"Index {index} is located at Row = {row}, among start extra points.")
+        elif col < Col+extra[0]:
+            print(f"Index {index} is located at Row = {row}, Col = {col-extra[0]}")
+        else:
+            print(f"Index {index} is located at Row = {row}, among end extra points.")
+        return (row,col)
+    else:
+        print("Index is located among end ignore points")
+        return (Row,-ignore[1])
+
+def check_close_fair_pair(close_ind,far_ind, Row, Col, ignore, extra, first_row_repeat, volt, abf):
+    difs = np.array(far_ind) - np.array(close_ind)
+    plt.hist(difs, bins=10, alpha=0.7, edgecolor='black')  # You can change the number of bins as needed
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.title('Distribution of the Array')
+    plt.show()
+
+    err_ind = []
+    for i in range(len(difs)):
+        if stepwise_outlier(difs[:i+1],tol = 15):
+            err_ind.append(i)
+
+    # Check corresponding wave
+    for err in err_ind:
+        print(f"Error point index:{err}, Error value: {difs[err]}")
+        map_ind_coor(err, Row, Col, ignore, extra, first_row_repeat)
+        timeStart = close_ind[err]-20000
+        timeEnd = far_ind[err]+20000
+        plot_wave(abf,volt,timeStart = timeStart, timeEnd = timeEnd,channel=4)
