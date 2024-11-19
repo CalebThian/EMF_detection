@@ -63,7 +63,7 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None, auto_fill = False
             if auto_fill:
                 if len(far_index)==len(close_index):
                     ind_difs = np.array(far_index) - np.array(close_index)
-                    if stepwise_outlier(ind_difs,tol = 15):
+                    if stepwise_outlier(ind_difs):
                         # Error occurs, either far or close missing
                         # Handling Strategy: 
                         # Goal: Insert estimate closed index
@@ -367,7 +367,7 @@ def write_target(target, file_path):
             writer.writerow(x)
             
 # Progressively check which diffenrence may be error
-def stepwise_outlier(arr,tol = 15):
+def stepwise_outlier(arr,tol = 30):
     # tol: accept inside the boundary (mean+- tol*std)
     # Only check the last one
     mean = np.mean(arr)
@@ -420,7 +420,7 @@ def check_close_fair_pair(close_ind,far_ind, Row, Col, ignore, extra, first_row_
 
     err_ind = []
     for i in range(len(difs)):
-        if stepwise_outlier(difs[:i+1],tol = 15):
+        if stepwise_outlier(difs[:i+1]):
             err_ind.append(i)
 
     # Check corresponding wave
