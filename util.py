@@ -9,7 +9,7 @@ import pandas as pd
 import math
 
 
-def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None):
+def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None, auto_fill = False):
     # 分析並抓出偏壓位置
     # single = (start_single,end_single)
     # 邏輯：
@@ -25,6 +25,7 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None):
     close_index = []
     far_index = []
     index = []
+    err_index = []
     debug = False #When debugging, set debug to True
 
     # Solving starting with a single far point problem
@@ -57,6 +58,30 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None):
             else:
                 far_index.append(i)
                 close_flag = True
+            
+            # Automatic missing close/far handling
+            if auto_fill:
+                if len(far_index)==len(close_index):
+                    ind_difs = np.array(far_index) - np.array(close_index)
+                    if stepwise_outlier(ind_difs,tol = 15):
+                        # Error occurs, either far or close missing
+                        # Handling Strategy: 
+                        # Goal: Insert estimate closed index
+                        # (because either far or close missing, program will definitely assume far missing as close come first)
+                        # but probably it happens because close didn't exists
+                        # Now, last close index already be inserted, which should be far index
+
+                        # Error Handling
+                        print(f"Error point index:{len(close_index)-1}, Error value: {ind_difs[-1]}")
+                        err_index.append(len(close_index)-1)
+                        far_index[-1] = close_index[-1]
+                        close_index[-1] = int(far_index[-1]-np.mean(ind_difs[:-1]))
+                        close_index.append(i)
+                        index[-1] = int(far_index[-1]-np.mean(ind_difs[:-1]))
+                        index.append(i)
+                        close_flag = False
+                    
+                    
     
     # Solve starting and/or ending with a single far point problem
     if single[0]:
@@ -75,16 +100,15 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None):
         print("Far point are:")
         for i in far_index:
             print(abf.sweepX[timeStart:timeEnd][i],bias[i])
-    return index,close_index,far_index
+    return index,close_index,far_index,err_index
 
-def findStable_Bias(abf,volt,single,mean_range=5,timeStart = 0, timeEnd = None,channel = 2):
-    index,close_index,far_index = analysis_Bias(abf,volt,single,timeStart = timeStart,timeEnd = timeEnd)
+def findStable_Bias(abf,volt,single,mean_range=5,timeStart = 0, timeEnd = None,channel = 2, auto_fill = False):
+    index,close_index,far_index,err_index = analysis_Bias(abf,volt,single,timeStart = timeStart,timeEnd = timeEnd, auto_fill = auto_fill)
     
     # mean_range default set as 5 because 1ms = 5 data points
     abf.setSweep(0,channel=channel)
     close = []
     far = []
-
     for ci in close_index:
         t = abf.sweepY[timeStart:timeEnd][ci-4:ci+1]
         mean = np.mean(np.array(t))
@@ -95,7 +119,7 @@ def findStable_Bias(abf,volt,single,mean_range=5,timeStart = 0, timeEnd = None,c
         mean = np.mean(np.array(t))
         far.append(mean)
         
-    return np.array(close),np.array(far),close_index,far_index
+    return np.array(close),np.array(far),close_index,far_index,err_index
 
 # 定义递归展开函数
 def flatten(lst):
@@ -142,13 +166,13 @@ def print_points_qty(abf,index = None, matrix = None):
         print(f"Row Dimension:{len(row)} ; Row Total: {str(np.sum(flatten(row)))}")
     print("Total points: "+str(np.sum(flatten(matrix))))
     
-def plot_wave(abf,volt,single = (False,False),timeStart = 0, timeEnd = None,channel = 2):
+def plot_wave(abf,volt,single = (False,False),timeStart = 0, timeEnd = None,channel = 2,auto_fill = False):
     abf.setSweep(0,channel = channel)
     plt.figure(figsize=(18,5))
     plt.plot(abf.sweepX[timeStart:timeEnd],abf.sweepY[timeStart:timeEnd],color = 'green')
     
     #plot the stable 
-    index,close_index,far_index = analysis_Bias(abf,volt,single,timeStart = timeStart,timeEnd = timeEnd)
+    index,close_index,far_index,_ = analysis_Bias(abf,volt,single,timeStart = timeStart,timeEnd = timeEnd,auto_fill = auto_fill)
     abf.setSweep(0,channel = channel)
     barX_start = []
     barY_start = []
@@ -166,6 +190,52 @@ def plot_wave(abf,volt,single = (False,False),timeStart = 0, timeEnd = None,chan
         plt.annotate(str(counting),xy=(abf.sweepX[timeStart:timeEnd][i-4],abf.sweepY[timeStart:timeEnd][i-4]+(j-int(length/2)+1)+1))
     plt.scatter(barX_end,barY_end,s=1,facecolors='b', edgecolors='b')
     plt.scatter(barX_start,barY_start,s=1,facecolors='r',edgecolors='r')
+    plt.ylabel(abf.sweepLabelY)
+    plt.xlabel(abf.sweepLabelX)
+    plt.show()
+    return len(close_index),len(far_index)
+
+def plot_wave_with_index(abf,close_index,far_index,timeStart = 0, timeEnd = None,channel = 2):
+    abf.setSweep(0,channel = channel)
+    plt.figure(figsize=(18,5))
+    plt.plot(abf.sweepX[timeStart:timeEnd],abf.sweepY[timeStart:timeEnd],color = 'green')
+    
+    #plot the stable
+    close_index = [x-timeStart for x in close_index if timeStart <= x <= timeEnd]
+    far_index = [x-timeStart for x in far_index if timeStart <= x <= timeEnd]
+    abf.setSweep(0,channel = channel)
+    barX_start = []
+    barY_start = []
+    barX_end = []
+    barY_end = []
+    counting = 0
+    for i in close_index:
+        length = 21
+        counting+=1
+        for j in range(length):
+            barX_end.append(abf.sweepX[timeStart:timeEnd][i])
+            barY_end.append(abf.sweepY[timeStart:timeEnd][i]+(j-int(length/2)+1))
+            barX_start.append(abf.sweepX[timeStart:timeEnd][i-4])
+            barY_start.append(abf.sweepY[timeStart:timeEnd][i-4]+(j-int(length/2)+1))
+        plt.annotate(str(counting),xy=(abf.sweepX[timeStart:timeEnd][i-4],abf.sweepY[timeStart:timeEnd][i-4]+(j-int(length/2)+1)+1))
+    plt.scatter(barX_end,barY_end,s=1,facecolors='b', edgecolors='b')
+    plt.scatter(barX_start,barY_start,s=1,facecolors='r',edgecolors='r')
+    
+    barX_start = []
+    barY_start = []
+    barX_end = []
+    barY_end = []
+    for i in far_index:
+        length = 21
+        counting+=1
+        for j in range(length):
+            barX_end.append(abf.sweepX[timeStart:timeEnd][i])
+            barY_end.append(abf.sweepY[timeStart:timeEnd][i]+(j-int(length/2)+1))
+            barX_start.append(abf.sweepX[timeStart:timeEnd][i-4])
+            barY_start.append(abf.sweepY[timeStart:timeEnd][i-4]+(j-int(length/2)+1))
+        plt.annotate(str(counting),xy=(abf.sweepX[timeStart:timeEnd][i-4],abf.sweepY[timeStart:timeEnd][i-4]+(j-int(length/2)+1)+1))
+    plt.scatter(barX_end,barY_end,s=1,facecolors='m', edgecolors='m')
+    plt.scatter(barX_start,barY_start,s=1,facecolors='c',edgecolors='c')
     plt.ylabel(abf.sweepLabelY)
     plt.xlabel(abf.sweepLabelX)
     plt.show()
@@ -341,4 +411,5 @@ def check_close_fair_pair(close_ind,far_ind, Row, Col, ignore, extra, first_row_
         map_ind_coor(err, Row, Col, ignore, extra, first_row_repeat)
         timeStart = close_ind[err]-20000
         timeEnd = far_ind[err]+20000
+        plot_wave(abf,volt,timeStart = timeStart, timeEnd = timeEnd,channel=2)
         plot_wave(abf,volt,timeStart = timeStart, timeEnd = timeEnd,channel=4)
