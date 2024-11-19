@@ -179,7 +179,7 @@ def plot_wave(abf,volt,single = (False,False),timeStart = 0, timeEnd = None,chan
     barX_end = []
     barY_end = []
     counting = 0
-    for i in index:
+    for i in close_index:
         length = 21
         counting+=1
         for j in range(length):
@@ -190,6 +190,23 @@ def plot_wave(abf,volt,single = (False,False),timeStart = 0, timeEnd = None,chan
         plt.annotate(str(counting),xy=(abf.sweepX[timeStart:timeEnd][i-4],abf.sweepY[timeStart:timeEnd][i-4]+(j-int(length/2)+1)+1))
     plt.scatter(barX_end,barY_end,s=1,facecolors='b', edgecolors='b')
     plt.scatter(barX_start,barY_start,s=1,facecolors='r',edgecolors='r')
+    
+    barX_start = []
+    barY_start = []
+    barX_end = []
+    barY_end = []
+    counting = 0
+    for i in far_index:
+        length = 21
+        counting+=1
+        for j in range(length):
+            barX_end.append(abf.sweepX[timeStart:timeEnd][i])
+            barY_end.append(abf.sweepY[timeStart:timeEnd][i]+(j-int(length/2)+1))
+            barX_start.append(abf.sweepX[timeStart:timeEnd][i-4])
+            barY_start.append(abf.sweepY[timeStart:timeEnd][i-4]+(j-int(length/2)+1))
+        plt.annotate(str(counting),xy=(abf.sweepX[timeStart:timeEnd][i-4],abf.sweepY[timeStart:timeEnd][i-4]+(j-int(length/2)+1)+1))
+    plt.scatter(barX_end,barY_end,s=1,facecolors='m', edgecolors='m')
+    plt.scatter(barX_start,barY_start,s=1,facecolors='c',edgecolors='c')
     plt.ylabel(abf.sweepLabelY)
     plt.xlabel(abf.sweepLabelX)
     plt.show()
@@ -225,6 +242,7 @@ def plot_wave_with_index(abf,close_index,far_index,timeStart = 0, timeEnd = None
     barY_start = []
     barX_end = []
     barY_end = []
+    counting = 0
     for i in far_index:
         length = 21
         counting+=1
