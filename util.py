@@ -367,13 +367,16 @@ def write_target(target, file_path):
             writer.writerow(x)
             
 # Progressively check which diffenrence may be error
-def stepwise_outlier(arr,tol = 30):
-    # tol: accept inside the boundary (mean+- tol*std)
+def stepwise_outlier(arr): #,tol = 40): # 捨棄tol的方法
+    # Method 1: tol: accept inside the boundary (mean+- tol*std)
+    # Method 2 (Using now): distance > 2*mean
     # Only check the last one
-    mean = np.mean(arr)
-    std = np.std(arr)
-    upper_bound = mean+tol*std
-    lower_bound = mean-tol*std
+    if len(arr)==1:
+        return False
+    mean = np.mean(arr[:-1])
+    std = np.std(arr[:-1])
+    upper_bound = 2*mean #mean+tol*std
+    lower_bound = 0 #mean-tol*std
     if arr[-1]> upper_bound or  arr[-1]< lower_bound:
         print(f"Now:{arr[-1]:.2f},Mean: {mean:.2f}, Std:{std:.2f},Limits:[{lower_bound:.2f},{upper_bound:.2f}]")
         return True
