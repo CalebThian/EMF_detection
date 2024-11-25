@@ -27,13 +27,8 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None, auto_fill = False
     index = []
     err_index = []
     debug = False #When debugging, set debug to True
-
-    # Solving starting with a single far point problem
-    if single[0]:
-        close_flag = False
-    else:
-        close_flag = True
-        
+    close_flag = True
+    start_single_flag = single[0]
     for i in range(0,len(bias)-1):
         dif = bias[i+1]-bias[i]
         
@@ -53,9 +48,13 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None, auto_fill = False
         if dif == -1:
             index.append(i)
             if close_flag:
+                if start_single_flag:
+                    start_single_flag = False
+                    continue #Ignore start single point
                 close_index.append(i)
                 close_flag = False
             else:
+
                 far_index.append(i)
                 close_flag = True
             
@@ -84,8 +83,6 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None, auto_fill = False
                     
     
     # Solve starting and/or ending with a single far point problem
-    if single[0]:
-        far_index = far_index[1:]
     if single[1]:
         close_index = close_index[:-1]
     
