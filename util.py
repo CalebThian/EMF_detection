@@ -27,13 +27,8 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None, auto_fill = False
     index = []
     err_index = []
     debug = False #When debugging, set debug to True
-
-    # Solving starting with a single far point problem
-    if single[0]:
-        close_flag = False
-    else:
-        close_flag = True
-        
+    close_flag = True
+    start_single_flag = single[0]
     for i in range(0,len(bias)-1):
         dif = bias[i+1]-bias[i]
         
@@ -53,9 +48,13 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None, auto_fill = False
         if dif == -1:
             index.append(i)
             if close_flag:
+                if start_single_flag:
+                    start_single_flag = False
+                    continue #Ignore start single point
                 close_index.append(i)
                 close_flag = False
             else:
+
                 far_index.append(i)
                 close_flag = True
             
@@ -84,8 +83,6 @@ def analysis_Bias(abf,volt,single,timeStart=0, timeEnd = None, auto_fill = False
                     
     
     # Solve starting and/or ending with a single far point problem
-    if single[0]:
-        far_index = far_index[1:]
     if single[1]:
         close_index = close_index[:-1]
     
@@ -371,17 +368,16 @@ def stepwise_outlier(arr): #,tol = 40): # 捨棄tol的方法
     # Method 1: tol: accept inside the boundary (mean+- tol*std)
     # Method 2 (Using now): distance > 2*mean
     # Only check the last one
-    if len(arr)==1:
+    if len(arr)<=10: # Sample first 10 points as population
         return False
     mean = np.mean(arr[:-1])
     std = np.std(arr[:-1])
-    upper_bound = 2*mean #mean+tol*std
+    upper_bound = 2*abs(mean) #mean+tol*std
     lower_bound = 0 #mean-tol*std
-    if arr[-1]> upper_bound or  arr[-1]< lower_bound:
+    if abs(arr[-1])> upper_bound or  abs(arr[-1])< lower_bound:
         print(f"Now:{arr[-1]:.2f},Mean: {mean:.2f}, Std:{std:.2f},Limits:[{lower_bound:.2f},{upper_bound:.2f}]")
         return True
     else:
-        
         return False
     
 def map_ind_coor(index, Row, Col, ignore, extra, first_row_repeat):
